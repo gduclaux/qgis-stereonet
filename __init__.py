@@ -156,16 +156,16 @@ class Stereonet:
         plt.show()
         
     def contourPlot(self):
-        sname='Strike_RHR'
-        ddname='Dip_Dir'
-        dname='Dip'
-        aname='Azimuth'
-        pname='Plunge'
+        sname='strike'
+        ddname='dipAzimuth'
+        dname='dip'
+        aname='plungeAzimuth'
+        pname='plunge'
         srefname='Strike_ref'
         drefname='Dip_ref'
         kname='Kinematics'
-        pname='Plunge'
         prhrname='Pitch_RHR'
+        color='color'
 
         strikes = list()
         dips = list()
@@ -180,6 +180,7 @@ class Stereonet:
         roseAzimuth = list()
         rhr=list()
         azs=list()
+        colors=list()
 
 
         project = QgsProject.instance()
@@ -190,7 +191,7 @@ class Stereonet:
 
         #stereoConfigPath = head_tail[0]+"/0. FIELD DATA/0. CURRENT MISSION/0. STOPS-SAMPLING-PHOTOGRAPHS-COMMENTS/stereonet.json"
         
-        stereoConfig={'showGtCircles':True,'showContours':True,'showKinematics':True,'linPlanes':True}
+        stereoConfig={'showGtCircles':False,'showContours':True,'showKinematics':False,'linPlanes':True,'roseDiagram':False}
         
 
         if(os.path.exists(stereoConfigPath)):
@@ -213,9 +214,12 @@ class Stereonet:
                 plungeExists = layer.fields().lookupField(pname)
                 srefExists = layer.fields().lookupField(srefname)
                 drefExists = layer.fields().lookupField(drefname)
+                colorExists = layer.fields().lookupField(color)
 
                 for feature in iter:
-                  
+                    if colorExists != -1:
+                        colors.append(feature[color])
+
                     if ddrExists != -1 and dipExists != -1:
                         strikes.append(feature[ddname]+90)
                         dips.append(feature[dname])
@@ -244,6 +248,8 @@ class Stereonet:
                     if azimuthExists != -1 and stereoConfig['roseDiagram']:
                         roseAzimuth.append(feature[aname])
  
+                    if strikeExists != -1 and stereoConfig['roseDiagram']:
+                        roseAzimuth.append(feature[sname])
 
 
             else:
@@ -254,6 +260,7 @@ class Stereonet:
         strikes = [i for i in strikes if i != None]
         dips = [i for i in dips if i != None]
         plunges = [i for i in plunges if i != None]
+        colors = [i for i in colors if i != None]
 
         if(len(roseAzimuth) != 0 and stereoConfig['roseDiagram']):
             self.rose_diagram(roseAzimuth,layer.name()+" [# "+str(len(iter))+"]")
@@ -264,10 +271,14 @@ class Stereonet:
             ax.grid(kind='equal_area_stereonet')
             if(stereoConfig['showContours']):
                 ax.density_contour(strikes, dips, measurement='poles',cmap=cm.coolwarm,method='exponential_kamb',sigma=1.5,linewidths =0.5)
-            if(stereoConfig['showGtCircles'] and strikeExists != -1):
+            if(stereoConfig['showGtCircles'] and strikeExists != -1 and colorExists != -1):
+                for color in enumerate(colors):
+                    ax.plane(strikes[color[0]], dips[color[0]], color=color[1], linewidth=1)
+            elif(stereoConfig['showGtCircles'] and strikeExists != -1):
                 ax.plane(strikes, dips, 'k',linewidth=1)
             else:
-                ax.pole(strikes, dips, 'k.', markersize=5)
+                for color in enumerate(colors):
+                    ax.pole(strikes[color[0]], dips[color[0]], color=color[1], markersize=3)
                 if(srefExists != -1 and drefExists != -1 and stereoConfig['linPlanes']):
                     ax.plane(strikesref,dipsref,'k',linewidth=1)
                 if plungeExists != -1 and drefExists != -1 and stereoConfig['showKinematics']:
